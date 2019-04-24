@@ -1,4 +1,5 @@
 ####2 IV populations, one outcome of interest with 2 possible catgorical responses
+#prefer wesite A/B (or later ABC) between Sexes
 prefsABsex=read.csv("prefsABsex")
 plot(prefsABsex[prefsABsex$Sex == "M"]$Pref)
 plot(prefsABsex[prefsABsex == "F"]$Pref)

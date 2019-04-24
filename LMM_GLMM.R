@@ -1,0 +1,63 @@
+#If using Within Subjects must use the Linear Mixed or General Linear Mixed Models
+#random effects rather AND fixed effects for LMM or GLMM
+#Subject is a random effect without levels (fixed effects are factors )
+#don't need sphericity anymore, instead model the form directly 
+#more computationally intensive and large denominator DFs
+#must consider nesting/nested effects
+##if levels shouldn't be pooled by label alone, might be nested (as in trial # as there's no consistency between trial 1s across subjects/conditions)
+###not meaningful to consider the levels alone== use nesting
+
+#Linear Mixed Model with WPM
+#recall the mlbtext data with iPhone/Samsung and sit/stand/walk 
+##2x3 factorial anova (keyboard= between, postures=within); output was averages but with mixed models, keep all answers
+mbltexttrials=read.csv("mlbtexttrials.csv")
+mbltexttrials$Subject=factor(mbltexttrials$Subject)
+mbltexttrials$Order=factor(mbltexttrials$Order)
+mbltexttrials$Trial=factor(mbltexttrials$Trial)
+summary(mbltexttrials)
+
+#explore data
+library(plyr)
+ddply(mbltexttrials, ~Keyboard*Posture, function(data) summary(data$WPM))
+ddply(mbltexttrials, ~Keyboard*Posture, summarise, WPM.mean=mean(WPM), WPM.sd=sd(WPM))
+hist(mbltexttrials[mbltexttrials$Keyboard=="iPhone" & mbltexttrials$Posture=="Sit",]$WPM)
+hist(mbltexttrials[mbltexttrials$Keyboard=="iPhone" & mbltexttrials$Posture=="Stand",]$WPM)
+hist(mbltexttrials[mbltexttrials$Keyboard=="iPhone" & mbltexttrials$Posture=="Walk",]$WPM)
+hist(mbltexttrials[mbltexttrials$Keyboard=="Samsung" & mbltexttrials$Posture=="Sit",]$WPM)
+hist(mbltexttrials[mbltexttrials$Keyboard=="Samsung" & mbltexttrials$Posture=="Stand",]$WPM)
+hist(mbltexttrials[mbltexttrials$Keyboard=="Samsung" & mbltexttrials$Posture=="Walks",]$WPM)
+box.plot(WPM~Keyboard*Posture, data=mbltexttrials, xlab="Keyboard Posture", ylab="WPM")
+with(mbltexttrials, interaction.plot(POsture, Keyboard, WPM, ylim=c(0, max(mbltexttrials$WPM))))
+
+#LIbraries for LMM on WPM
+library(lme4)
+library(lmerTest)
+library(car)
+
+#set sum to zero contrasts for Anova calls (car package)
+contrasts(mbltexttrials$Keyboard)="contr.sum"
+contrasts(mbltexttrials$Trial)="contr.sum"
+contrasts(mbltexttrials$Order)="contr.sum"
+contrasts(mbltexttrials$Trial)="contr.sum"
+
+#LMM Order effect test
+#make sure counterbalanced correctly
+m=lmer(WPM~(Keyboard*Order)/Trial +(1|Subject), data=mbltexttrials) #the slash Trial nests trials within keyboard and order
+Anova(m, type=3, test.statistic="F")
+#no difference in the interaction shows us that the order didn't affect the data and counterbalance worked
+
+#LMM main effect fo POsture
+m=lmer(WPM~(Keyboard*Posture)/Trial + (1|Subject), data=mbltexttrials)
+Anova(m, type=3, test.statistic = "F")
+
+#Why don't we use Trial random instead of a nested Fixed?
+#can do this as well, make sure the results are similar
+m=lmer(WPM~(Keyboard*Posture)/(1|Trial)+(1|Subject), data=mbltexttrials)
+Anova(m, type=3, test.statistic = "F")
+
+#pairwise comparistons
+library(multcomp)
+library(lsmeans)
+summary(glht(m, lsm(pairwise~Keyboad*Posture)), test-adjusted(type="holm"))
+with(mbltexttrials, interaction.plot(Posture, Keyboard, WPM, ylim=c(0, max(mbltexttrials$WPM))))
+     
