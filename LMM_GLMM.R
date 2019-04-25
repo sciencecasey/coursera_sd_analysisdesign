@@ -61,3 +61,59 @@ library(lsmeans)
 summary(glht(m, lsm(pairwise~Keyboad*Posture)), test-adjusted(type="holm"))
 with(mbltexttrials, interaction.plot(Posture, Keyboard, WPM, ylim=c(0, max(mbltexttrials$WPM))))
      
+
+#now with GLMM on Error Rate to model the poisson model as a count variable 
+#turn Error rate into Errors out of 100
+mbltexttrials$Errors=mbltexttrials$Error_Rate*100
+summary(mbltexttrials)
+
+#explore new column
+library(plyr)
+ddply(mbltexttrials, ~Keyboard*Posture, function(data) summary(data$Errrors))
+ddply(mbltexttrials, ~Keyboard*Posture, summarise, mean.Errors=mean(Errors), sd.Errors=sd(Errors))
+boxplot(Errors~Keyboard*Posture, data=mbltexttrials, xlab="Keyboard.Posture", ylab="Errors")
+with(mbltexttrials, interaction.plot(Posture, Keyboard, Errors, ylim=c(0, max(mbltexttrials$Errors))))
+
+#see if Poisson dist.
+library(fitdistrplus)
+fit=fitdistr(mbltexttrials[mbltexttrials$Keyboard=="iPhone" & mbltexttrials$Posture=="Sit"]$Errors)
+gofstat(fit)
+fit=fitdistr(mbltexttrials[mbltexttrials$Keyboard=="iPhone" & mbltexttrials$Posture=="Stand"]$Errors)
+gofstat(fit)
+fit=fitdistr(mbltexttrials[mbltexttrials$Keyboard=="iPhone" & mbltexttrials$Posture=="Walk"]$Errors)
+gofstat(fit)
+fit=fitdistr(mbltexttrials[mbltexttrials$Keyboard=="Samsung" & mbltexttrials$Posture=="Sit"]$Errors)
+gofstat(fit)
+fit=fitdistr(mbltexttrials[mbltexttrials$Keyboard=="Samsung" & mbltexttrials$Posture=="Stand"]$Errors)
+gofstat(fit)
+fit=fitdistr(mbltexttrials[mbltexttrials$Keyboard=="Samsung" & mbltexttrials$Posture=="Walk"]$Errors)
+gofstat(fit)
+
+#load libraries for GLMMs with poisson regression for Errors
+library(lme4)
+library(car)
+
+#set sum to zero contrasts for Anova
+contrasts(mbltexttrials$Keyboard)="contr.sum"
+contrasts(mbltexttrials$Posture)="contr.sum"
+contrasts(mbltexttrials$Trial)="contr.sum"
+
+#main GLMM tests
+#Keyboard, posture, Keyboard:Posture, and trial are fixed effects
+#Trial is nested within Keyboard, posture, and kayboard:posture
+#Subject is a random effect (repeated effect)
+#nAGQ is default 1 which completes much more slowly
+m=glmer(Errors~(Keyboard*Posture)/Trial +(1|Subject), data=mbltexttrials, family=poisson, nAGQ=0)
+Anova(m, type=3)
+
+#post hoc pairwise comp.
+with(mbltexttrials, interaction.plot(Posture, Keyboard, Errors, 
+                                     ylim=c(0,max(mbltexttrials$Errors))))
+library(multcomp)
+library(lsmeans)
+summary(glht(m, lsm(pairwise~Keyboard*Posture)), test-adjusted(type="holm"))
+###lsmeans is outdatted and updated to eemeans; see help 'transition'
+?transition
+
+
+
